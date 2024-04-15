@@ -52,4 +52,9 @@ dependencies {
     // Kotlin Coroutines dependencies
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
+    // Worker dependencies
+    //implementation ("androidx.work:work-runtime:2.7.0")
+    var work_version = "2.7.0"
+    implementation ("androidx.work:work-runtime-ktx:$work_version")
+
 }

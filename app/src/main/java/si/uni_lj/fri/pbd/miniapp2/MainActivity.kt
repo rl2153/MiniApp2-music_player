@@ -1,5 +1,7 @@
 package si.uni_lj.fri.pbd.miniapp2
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.ContentValues.TAG
@@ -7,18 +9,32 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
 import si.uni_lj.fri.pbd.miniapp2.MediaPlayerService.Companion.ACTION_START
 import si.uni_lj.fri.pbd.miniapp2.databinding.ActivityMainBinding
-
+import android.Manifest
+import android.media.AudioAttributes
 
 class MainActivity : AppCompatActivity() {
+
+    private val INTERNET_PERMISSION_REQUEST_CODE = 101
+    private val POST_NOTIFICATION_PERMISSION_REQUEST_CODE = 102
+    private val FOREGROUND_SERVICE_PERMISSION_REQUEST_CODE = 103
+
     private lateinit var binding: ActivityMainBinding
+    private lateinit var context: Context
 
     // broadcast receiver to receive updates from MediaPlayerService
     private val broadcastReceiver = object : BroadcastReceiver() {
@@ -48,11 +64,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
+        context = applicationContext
         setContentView(binding.root)
 
         progressBar = binding.progressBar
         trackDuration = binding.viewTrackDuration
 
+        createNotificationChannel()
     }
 
     // connection to the media player service
@@ -71,16 +89,48 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //@RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onStart() {
         super.onStart()
 
+        // check for permissions
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.INTERNET),
+                INTERNET_PERMISSION_REQUEST_CODE
+            )
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.FOREGROUND_SERVICE),
+                FOREGROUND_SERVICE_PERMISSION_REQUEST_CODE
+            )
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                POST_NOTIFICATION_PERMISSION_REQUEST_CODE
+            )
+        }
+
+        // start media player service
         Log.d(TAG, "Starting and binding service");
         val intent = Intent(this, MediaPlayerService::class.java)
         startService(intent)
         intent.action = ACTION_START
         bindService(intent, mConnection, 0);
 
-        registerReceiver(broadcastReceiver, IntentFilter(MediaPlayerService.ACTION_UPDATE_ELAPSED_TIME))
+        registerReceiver(
+            broadcastReceiver,
+            IntentFilter(MediaPlayerService.ACTION_UPDATE_ELAPSED_TIME),
+            RECEIVER_NOT_EXPORTED
+        )
 
         // button listeners
         binding.btnPlay.setOnClickListener {
@@ -104,6 +154,14 @@ class MainActivity : AppCompatActivity() {
         binding.btnExit.setOnClickListener {
             mediaPlayerService?.handleExitCommand()
             finish()
+        }
+
+        binding.btnHits.setOnClickListener {
+            // create a work request
+            val downloadWorkRequest = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
+                .build()
+            // schedule the work request
+            WorkManager.getInstance(this).enqueue(downloadWorkRequest)
         }
     }
 
@@ -145,6 +203,21 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "prog bar percentage: "+progressPercentage)
         Log.d("MainActivity", "played time (sec): "+playedTimeSec)
         Log.d("MainActivity", "total duration: "+totalDuration)
+    }
+
+    private fun createNotificationChannel() {
+        val channelId = "download_progress"
+        val channelName = "Download Progress"
+        val channelDescription = "Shows download progress notification"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+
+        val channel = NotificationChannel(channelId, channelName, importance).apply {
+            description = channelDescription
+            //setSound(null, AudioAttributes.Builder().build())
+        }
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
     }
 
 
