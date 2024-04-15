@@ -30,6 +30,8 @@ import java.net.URL
 
 class DownloadWorker(context: Context, params: WorkerParameters): CoroutineWorker(context, params) {
 
+    private val notificationManager = NotificationManagerCompat.from(context)
+    private val notificationId = 1
 
     override suspend fun doWork(): Result {
 
@@ -60,9 +62,13 @@ class DownloadWorker(context: Context, params: WorkerParameters): CoroutineWorke
 
                             val progress =
                                 ((totalBytesRead.toFloat() / fileSize.toFloat()) * 100).toInt()
+                            // show and update the download notification
                             showDownloadProgressNotification(applicationContext, progress)
 
                         }
+                        // hide the download notification
+                        notificationManager.cancel(notificationId)
+
                         outputStream.flush()
                         outputStream.close()
                         inputStream.close()
@@ -98,7 +104,6 @@ class DownloadWorker(context: Context, params: WorkerParameters): CoroutineWorke
 
     private fun showDownloadProgressNotification(context: Context, progress: Int) {
         val channelId = "download_progress"
-        val notificationId = 1
 
         // create a notification builder
         val builder = NotificationCompat.Builder(context, channelId)
