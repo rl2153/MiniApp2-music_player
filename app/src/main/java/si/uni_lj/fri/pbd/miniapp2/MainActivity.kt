@@ -26,6 +26,9 @@ import si.uni_lj.fri.pbd.miniapp2.MediaPlayerService.Companion.ACTION_START
 import si.uni_lj.fri.pbd.miniapp2.databinding.ActivityMainBinding
 import android.Manifest
 import android.media.AudioAttributes
+import android.os.Environment
+import android.view.View
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -126,6 +129,7 @@ class MainActivity : AppCompatActivity() {
         intent.action = ACTION_START
         bindService(intent, mConnection, 0);
 
+        // register intent receiver
         registerReceiver(
             broadcastReceiver,
             IntentFilter(MediaPlayerService.ACTION_UPDATE_ELAPSED_TIME),
@@ -156,12 +160,19 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
 
-        binding.btnHits.setOnClickListener {
-            // create a work request
-            val downloadWorkRequest = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
-                .build()
-            // schedule the work request
-            WorkManager.getInstance(this).enqueue(downloadWorkRequest)
+        // check if the hit file is already downloaded
+        // if it is, hide the hits button
+        if (isFilePresent(context)) {
+            hideButton()
+        }
+        else {
+            binding.btnHits.setOnClickListener {
+                // create a work request
+                val downloadWorkRequest = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
+                    .build()
+                // schedule the work request
+                WorkManager.getInstance(this).enqueue(downloadWorkRequest)
+            }
         }
     }
 
@@ -220,5 +231,14 @@ class MainActivity : AppCompatActivity() {
         notificationManager.createNotificationChannel(channel)
     }
 
+    private fun isFilePresent(context: Context): Boolean {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val filePath = File(downloadsDir, "hit.mp3")
+        return filePath.exists()
+    }
+
+    private fun hideButton() {
+        binding.btnHits.visibility = View.GONE
+    }
 
 }
