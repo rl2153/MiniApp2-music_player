@@ -25,9 +25,15 @@ import androidx.work.WorkManager
 import si.uni_lj.fri.pbd.miniapp2.MediaPlayerService.Companion.ACTION_START
 import si.uni_lj.fri.pbd.miniapp2.databinding.ActivityMainBinding
 import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Service
 import android.media.AudioAttributes
 import android.os.Environment
 import android.view.View
+import android.widget.Button
+import android.widget.Toast
+import androidx.lifecycle.Observer
+import androidx.work.WorkInfo
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
@@ -49,6 +55,14 @@ class MainActivity : AppCompatActivity() {
                     updateProgressBar(playedTimeMs)
                 }
             }
+        }
+    }
+
+    companion object {
+        fun isFilePresent(context: Context): Boolean {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val filePath = File(downloadsDir, "hit.mp3")
+            return filePath.exists()
         }
     }
 
@@ -92,7 +106,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //@RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onStart() {
         super.onStart()
 
@@ -142,7 +155,7 @@ class MainActivity : AppCompatActivity() {
             currentTrack = mediaPlayerService?.retrieveCurrentTrack()
             Log.d("MainActivity", "current track: "+currentTrack)
             // set current track title
-            binding.viewTrackTitle.text = currentTrack!!.name
+            binding.viewTrackTitle.text = currentTrack?.name
         }
 
         binding.btnPause.setOnClickListener {
@@ -162,8 +175,9 @@ class MainActivity : AppCompatActivity() {
 
         // check if the hit file is already downloaded
         // if it is, hide the hits button
-        if (isFilePresent(context)) {
-            hideButton()
+        var isFilePresent = isFilePresent(context)
+        if (isFilePresent) {
+            hideButton(binding.btnHits)
         }
         else {
             binding.btnHits.setOnClickListener {
@@ -172,6 +186,21 @@ class MainActivity : AppCompatActivity() {
                     .build()
                 // schedule the work request
                 WorkManager.getInstance(this).enqueue(downloadWorkRequest)
+                // observe work info
+                WorkManager.getInstance(this).getWorkInfoByIdLiveData(downloadWorkRequest.id)
+                    .observe(this, Observer { workInfo ->
+                        if (workInfo != null) {
+                            if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                // if work is successful, hide hits button
+                                hideButton(binding.btnHits)
+                                Toast.makeText(this, "download completed successfully", Toast.LENGTH_SHORT).show()
+                            }
+                            else if (workInfo.state == WorkInfo.State.FAILED) {
+                                Toast.makeText(this, "download failed", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    })
+
             }
         }
     }
@@ -231,14 +260,10 @@ class MainActivity : AppCompatActivity() {
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun isFilePresent(context: Context): Boolean {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val filePath = File(downloadsDir, "hit.mp3")
-        return filePath.exists()
+
+    private fun hideButton(button: Button) {
+        button.visibility = View.GONE
     }
 
-    private fun hideButton() {
-        binding.btnHits.visibility = View.GONE
-    }
 
 }

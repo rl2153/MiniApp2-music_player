@@ -54,7 +54,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
     // Worker dependencies
     //implementation ("androidx.work:work-runtime:2.7.0")
-    var work_version = "2.7.0"
+    var work_version = "2.9.0"
     implementation ("androidx.work:work-runtime-ktx:$work_version")
+    // NotificationCompat dependency
+    implementation("androidx.core:core-ktx:1.12.0")
 
 }
