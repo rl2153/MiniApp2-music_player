@@ -1,5 +1,6 @@
 package si.uni_lj.fri.pbd.miniapp2
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -10,31 +11,27 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.IBinder
 import android.util.Log
+import android.view.View
+import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.annotation.RequiresApi
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import si.uni_lj.fri.pbd.miniapp2.MediaPlayerService.Companion.ACTION_START
 import si.uni_lj.fri.pbd.miniapp2.databinding.ActivityMainBinding
-import android.Manifest
-import android.annotation.SuppressLint
-import android.app.Service
-import android.media.AudioAttributes
-import android.os.Environment
-import android.view.View
-import android.widget.Button
-import android.widget.Toast
-import androidx.lifecycle.Observer
-import androidx.work.WorkInfo
 import java.io.File
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -87,7 +84,7 @@ class MainActivity : AppCompatActivity() {
         progressBar = binding.progressBar
         trackDuration = binding.viewTrackDuration
 
-        createNotificationChannel()
+        //createNotificationChannel()
     }
 
     // connection to the media player service
@@ -134,13 +131,24 @@ class MainActivity : AppCompatActivity() {
                 POST_NOTIFICATION_PERMISSION_REQUEST_CODE
             )
         }
+        /*
+        val requestPermissionLauncher = registerForActivityResult<String, Boolean>(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted: Boolean? ->
+            if (!isGranted!!) (Log.d("MainActivity", "push notification disabled"))
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+         */
 
         // start media player service
         Log.d(TAG, "Starting and binding service");
         val intent = Intent(this, MediaPlayerService::class.java)
-        startService(intent)
         intent.action = ACTION_START
+        startService(intent)
+
         bindService(intent, mConnection, 0);
+        mediaPlayerServiceBound = true
 
         // register intent receiver
         registerReceiver(
@@ -210,6 +218,10 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         // if the Service is bound, unbind it
         if (mediaPlayerServiceBound) {
+            if (mediaPlayerService?.isServiceActive == true) {
+                mediaPlayerService?.foreground()
+            }
+            //stopService(Intent(this, MediaPlayerService::class.java))
             unbindService(mConnection)
             mediaPlayerServiceBound = false
         }
@@ -245,6 +257,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "total duration: "+totalDuration)
     }
 
+    /*
     private fun createNotificationChannel() {
         val channelId = "download_progress"
         val channelName = "Download Progress"
@@ -259,6 +272,8 @@ class MainActivity : AppCompatActivity() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(channel)
     }
+
+     */
 
 
     private fun hideButton(button: Button) {

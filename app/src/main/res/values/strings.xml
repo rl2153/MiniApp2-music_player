@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">miniapp2</string>
+    <string name="channel_name">Foreground service channel</string>
+    <string name="channel_desc">Posts notifications related to the timer service</string>
+    <string name="notif_title">Music Player Active</string>
+    <string name="notif_text">Tap to return to app</string>
 </resources>

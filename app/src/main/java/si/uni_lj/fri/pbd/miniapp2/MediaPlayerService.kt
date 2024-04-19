@@ -1,17 +1,23 @@
 package si.uni_lj.fri.pbd.miniapp2
 
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.res.AssetFileDescriptor
 import android.content.res.AssetManager
+import android.graphics.Color
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
+import android.os.Build
 import android.os.Environment
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,9 +34,9 @@ class MediaPlayerService : Service() {
         private val TAG: String? = MediaPlayerService::class.simpleName
         const val ACTION_STOP = "stop_media_player_service"
         const val ACTION_START = "start_media_player_service"
-        private const val CHANNEL_ID = "media_player"
+        private const val channel_ID = "media_player"
         // static final int NOTIFICATION_ID
-        const val NOTIFICATION_ID = 1001
+        const val NOTIFICATION_ID = 2001
 
         // flags for updating music play time
         const val ACTION_UPDATE_ELAPSED_TIME = "UPDATE_ELAPSED_TIME"
@@ -40,6 +46,7 @@ class MediaPlayerService : Service() {
     // media player variables
     private lateinit var mediaPlayer : MediaPlayer
     private var isMediaPlayerInitialized = false
+    var isServiceActive = false
 
     // coroutine for updating music play time
     private val serviceJob = Job()
@@ -63,7 +70,6 @@ class MediaPlayerService : Service() {
     var track3 = Track("sample_music.mp3", 61)
 
     override fun onCreate() {
-
         // add local tracks to the list
         tracks.add(track1)
         tracks.add(track2)
@@ -80,12 +86,18 @@ class MediaPlayerService : Service() {
         // set up the media player
         setupMediaPlayer()
         // display media player notification
-        //startForeground(NOTIFICATION_ID, createNotification())
+        createNotificationChannel()
     }
 
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        //val notification = createNotification()
+        //startForeground(NOTIFICATION_ID, notification)
+        //createNotificationTwo()
+        return START_STICKY
+    }
     override fun onBind(intent: Intent): IBinder {
         Log.d(TAG, "binding media player service")
-        return playerServiceBinder
+        return this.playerServiceBinder
     }
 
     override fun onDestroy() {
@@ -103,6 +115,7 @@ class MediaPlayerService : Service() {
         }
         mediaPlayer.start()
         startElapsedTimeUpdates()
+        isServiceActive = true
     }
 
     fun pauseAudio() {
@@ -114,6 +127,7 @@ class MediaPlayerService : Service() {
         mediaPlayer.stop()
         setupMediaPlayer()
         stopElapsedTimeUpdates()
+        isServiceActive = false
     }
 
     fun handleExitCommand() {
@@ -187,14 +201,63 @@ class MediaPlayerService : Service() {
         }
     }
 
-    /*
     private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(this, channel_ID)
+            .setContentTitle("MediaPlayerService")
+            .setContentText("Service is running")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setChannelId(channel_ID)
+            .setContentIntent(pendingIntent)
+            .build()
 
-        //val notification = NotificatonCompat.Builder(this, CHANNEL_ID)
+
+
     }
 
-     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channel_ID,
+                "Media Playback",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Media playback controls"
+                enableLights(true)
+                lightColor = Color.RED
+                enableVibration(false)
+            }
+
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    fun foreground() {
+        startForeground(NOTIFICATION_ID, createNotification())
+        Log.d("MediaPlayerService", "notification should be displaying")
+    }
+
+    private fun createNotificationTwo(): Notification {
+        // create a notification builder
+        val builder = NotificationCompat.Builder(applicationContext, channel_ID)
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentTitle("music player")
+            .setContentText("playing music")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        //.setContentIntent(pendinIntent)
+
+        val notificationManager = NotificationManagerCompat.from(applicationContext)
+        return builder.build()
+        //notificationManager.notify(NOTIFICATION_ID, builder.build())
+    }
+
 
 }
