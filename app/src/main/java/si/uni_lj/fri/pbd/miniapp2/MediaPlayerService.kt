@@ -47,6 +47,7 @@ class MediaPlayerService : Service() {
     private lateinit var mediaPlayer : MediaPlayer
     private var isMediaPlayerInitialized = false
     var isServiceActive = false
+    var isPlaying = false
 
     // coroutine for updating music play time
     private val serviceJob = Job()
@@ -90,9 +91,27 @@ class MediaPlayerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        //val notification = createNotification()
-        //startForeground(NOTIFICATION_ID, notification)
-        //createNotificationTwo()
+        when (intent.action) {
+            "ACTION_PLAY" -> {
+                playAudio()
+                isPlaying = true
+                updateNotification(isPlaying)
+            }
+            "ACTION_PAUSE" -> {
+                pauseAudio()
+                isPlaying = false
+                updateNotification(isPlaying)
+            }
+            "ACTION_STOP" -> {
+                isPlaying = false
+                handleStopCommand()
+                updateNotification(isPlaying)
+            }
+            "ACTION_EXIT" -> {
+                handleExitCommand()
+            }
+        }
+
         return START_STICKY
     }
     override fun onBind(intent: Intent): IBinder {
@@ -116,11 +135,13 @@ class MediaPlayerService : Service() {
         mediaPlayer.start()
         startElapsedTimeUpdates()
         isServiceActive = true
+        isPlaying = true
     }
 
     fun pauseAudio() {
         mediaPlayer.pause()
         stopElapsedTimeUpdates()
+        isPlaying = false
     }
 
     fun handleStopCommand() {
@@ -128,6 +149,7 @@ class MediaPlayerService : Service() {
         setupMediaPlayer()
         stopElapsedTimeUpdates()
         isServiceActive = false
+        isPlaying = false
     }
 
     fun handleExitCommand() {
@@ -209,6 +231,70 @@ class MediaPlayerService : Service() {
             notificationIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        // intents for buttons on the notification
+        // intent for the play button
+        val playIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_PLAY"
+        }
+        val playPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            playIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // intent for the pause button
+        val pauseIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_PAUSE"
+        }
+        val pausePendingIntent = PendingIntent.getService(
+            this,
+            0,
+            pauseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // intent for the stop button
+        val stopIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_STOP"
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // intent for the exit button
+        val exitIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_EXIT"
+        }
+        val exitPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            exitIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, channel_ID)
+        builder.setContentIntent(pendingIntent)
+        builder.setContentTitle("MediaPlayerService")
+        builder.setContentText("media player is active")
+        builder.setSmallIcon(R.drawable.ic_launcher_background)
+        builder.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        builder.setChannelId(channel_ID)
+        if (isPlaying) {
+            builder.addAction(R.drawable.baseline_pause_circle_filled_24, "Pause", pausePendingIntent)
+        }
+        else {
+            builder.addAction(R.drawable.baseline_play_arrow_24, "Play", playPendingIntent)
+        }
+        builder.addAction(R.drawable.baseline_adjust_24, "Stop", stopPendingIntent)
+        builder.addAction(R.drawable.exit_button, "Exit", exitPendingIntent)
+
+        return builder.build()
+        /*
         return NotificationCompat.Builder(this, channel_ID)
             .setContentTitle("MediaPlayerService")
             .setContentText("Service is running")
@@ -216,10 +302,13 @@ class MediaPlayerService : Service() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setChannelId(channel_ID)
             .setContentIntent(pendingIntent)
+            .addAction(R.drawable.baseline_play_arrow_24, "Play", playPendingIntent)
+            .addAction(R.drawable.baseline_pause_circle_filled_24, "Pause", pausePendingIntent)
+            .addAction(R.drawable.baseline_adjust_24, "Stop", stopPendingIntent)
+            .addAction(R.drawable.exit_button, "Exit", exitPendingIntent)
             .build()
 
-
-
+         */
     }
 
     private fun createNotificationChannel() {
@@ -245,18 +334,81 @@ class MediaPlayerService : Service() {
         Log.d("MediaPlayerService", "notification should be displaying")
     }
 
-    private fun createNotificationTwo(): Notification {
-        // create a notification builder
-        val builder = NotificationCompat.Builder(applicationContext, channel_ID)
-            .setSmallIcon(R.drawable.ic_launcher_background)
-            .setContentTitle("music player")
-            .setContentText("playing music")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        //.setContentIntent(pendinIntent)
+    private fun updateNotification(isPlaying: Boolean) {
+        val playIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_PLAY"
+        }
+        val playPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            playIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        val notificationManager = NotificationManagerCompat.from(applicationContext)
-        return builder.build()
-        //notificationManager.notify(NOTIFICATION_ID, builder.build())
+        // intent for the pause button
+        val pauseIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_PAUSE"
+        }
+        val pausePendingIntent = PendingIntent.getService(
+            this,
+            0,
+            pauseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val playPauseIcon = if (isPlaying) {
+            R.drawable.baseline_pause_circle_filled_24
+        } else {
+            R.drawable.baseline_play_arrow_24
+        }
+
+        val actionTitle = if (isPlaying) {
+            "Pause"
+        } else {
+            "Play"
+        }
+
+        val pendingIntent = if (isPlaying) {
+            pausePendingIntent
+        } else {
+            playPendingIntent
+        }
+
+        // intent for the stop button
+        val stopIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_STOP"
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // intent for the exit button
+        val exitIntent = Intent(this, MediaPlayerService::class.java).apply {
+            action = "ACTION_EXIT"
+        }
+        val exitPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            exitIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, channel_ID)
+            .setContentTitle("MediaPlayerService")
+            .setContentText("Service is running")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setChannelId(channel_ID)
+            .setContentIntent(pendingIntent)
+            .addAction(playPauseIcon, actionTitle, pendingIntent)
+            .addAction(R.drawable.baseline_adjust_24, "Stop", stopPendingIntent)
+            .addAction(R.drawable.exit_button, "Exit", exitPendingIntent)
+            .build()
+
+        startForeground(NOTIFICATION_ID, notification)
+
     }
 
 
