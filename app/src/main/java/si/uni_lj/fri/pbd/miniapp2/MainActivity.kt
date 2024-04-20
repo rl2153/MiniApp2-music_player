@@ -35,6 +35,7 @@ import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
+    // permission codes
     private val INTERNET_PERMISSION_REQUEST_CODE = 101
     private val POST_NOTIFICATION_PERMISSION_REQUEST_CODE = 102
     private val FOREGROUND_SERVICE_PERMISSION_REQUEST_CODE = 103
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // checks if the hit.mp3 file is already downloaded
     companion object {
         fun isFilePresent(context: Context): Boolean {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -83,8 +85,6 @@ class MainActivity : AppCompatActivity() {
 
         progressBar = binding.progressBar
         trackDuration = binding.viewTrackDuration
-
-        //createNotificationChannel()
     }
 
     // connection to the media player service
@@ -131,15 +131,6 @@ class MainActivity : AppCompatActivity() {
                 POST_NOTIFICATION_PERMISSION_REQUEST_CODE
             )
         }
-        /*
-        val requestPermissionLauncher = registerForActivityResult<String, Boolean>(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted: Boolean? ->
-            if (!isGranted!!) (Log.d("MainActivity", "push notification disabled"))
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
-         */
 
         // start media player service
         Log.d(TAG, "Starting and binding service");
@@ -164,6 +155,7 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "current track: "+currentTrack)
             // set current track title
             binding.viewTrackTitle.text = currentTrack?.name
+            Log.d("MainActivity", "title updated")
         }
 
         binding.btnPause.setOnClickListener {
@@ -187,6 +179,7 @@ class MainActivity : AppCompatActivity() {
         if (isFilePresent) {
             hideButton(binding.btnHits)
         }
+        // if it isnt, download the file if hits button is clicked
         else {
             binding.btnHits.setOnClickListener {
                 // create a work request
@@ -214,6 +207,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+
     override fun onStop() {
         super.onStop()
         // if the Service is bound, unbind it
@@ -238,9 +232,11 @@ class MainActivity : AppCompatActivity() {
         val playedTimeSec = (playedTimeMs + 500) / 1000
         val durationFormatted = formatDuration(playedTimeSec)
         binding.viewTrackDuration.text = durationFormatted
-        trackDuration?.text = playedTimeSec.toString()
+        Log.d("MainActivity", "elapsed time: "+durationFormatted)
+        //trackDuration?.text = playedTimeSec.toString()
     }
 
+    // function to update the progress bar
     private fun updateProgressBar(playedTimeMs: Int) {
         val totalDuration = currentTrack?.durationSec
         val playedTimeSec = (playedTimeMs + 500) / 1000
@@ -257,28 +253,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "total duration: "+totalDuration)
     }
 
-    /*
-    private fun createNotificationChannel() {
-        val channelId = "download_progress"
-        val channelName = "Download Progress"
-        val channelDescription = "Shows download progress notification"
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-
-        val channel = NotificationChannel(channelId, channelName, importance).apply {
-            description = channelDescription
-            //setSound(null, AudioAttributes.Builder().build())
-        }
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
-    }
-
-     */
-
-
+    // hides the hits button
     private fun hideButton(button: Button) {
         button.visibility = View.GONE
     }
-
-
 }

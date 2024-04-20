@@ -94,6 +94,7 @@ class DownloadWorker(context: Context, params: WorkerParameters): CoroutineWorke
             }
     }
 
+    // checks if device is connected to the internet
     private fun isInternetConnected(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
@@ -101,7 +102,7 @@ class DownloadWorker(context: Context, params: WorkerParameters): CoroutineWorke
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-
+    // shows the download notification
     private fun showDownloadProgressNotification(context: Context, progress: Int) {
         val channelId = "download_progress"
 
