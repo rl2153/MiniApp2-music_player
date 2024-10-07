@@ -1,1 +1,1 @@
-Music player app for Android
+Simple music player app for Android
